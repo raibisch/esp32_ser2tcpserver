@@ -1,0 +1,94 @@
+#include <WiFi.h>
+
+char ssid[] = "MessNetz";      // your network SSID (name)
+char pass[] = "An2HFVUj";   // your network password
+
+uint8_t buffer[1436];
+uint8_t i;
+
+WiFiServer server(80);
+
+void setup() {
+  Serial.begin(115200);
+  Serial2.begin(115200, SERIAL_8N1, 13, 5);
+
+  // Set your Static IP address
+  IPAddress local_IP(192, 168, 2, 26);
+  // Set your Gateway IP address
+  IPAddress gateway(192, 168, 2, 1);
+ 
+  IPAddress subnet(255, 255, 255, 0);
+  IPAddress primaryDNS(8, 8, 8, 8);   //optional
+  IPAddress secondaryDNS(8, 8, 4, 4); //optional
+
+  // Configures static IP address
+  if (!WiFi.config(local_IP, gateway, subnet, primaryDNS, secondaryDNS)) {
+    Serial.println("STA Failed to configure");
+  }
+ 
+  Serial.println("");
+  Serial.print("Connecting to ");
+  Serial.println(ssid);
+ 
+  // attempt to connect to Wifi network:
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(ssid, pass);
+  WiFi.setSleep(false);
+  delay(1000);
+
+  while (WiFi.status() != WL_CONNECTED) {
+    Serial.print(".");
+    delay(500);
+  }
+   
+  server.begin();
+}
+
+void loop() {
+  // listen for incoming clients
+  WiFiClient client = server.available();
+  if (client) {
+    Serial.println("new client");
+    // an http request ends with a blank line
+    boolean currentLineIsBlank = true;
+    while (client.connected()) {
+
+      if(client.available()){
+        delay(5);
+        while (client.available()) {
+          char c = client.read();
+          Serial.write(c);
+          Serial2.write(c);
+        }
+      }
+
+      if(Serial2.available()){
+        i=0;
+        delay(5);
+        while (true) {
+          if(Serial2.available()){
+            char c = Serial2.read();  //gets one byte from serial buffer
+            Serial.write(c);
+            buffer[i] = c; //makes the string readString
+            i++;           
+            if(c==0x0A){
+              break;
+            }
+          }
+          yield();
+        }
+
+        Serial.write(buffer, i);
+        client.write(buffer, i);
+      }
+ 
+    }
+    // give the web browser time to receive the data
+    delay(5);
+
+    // close the connection:
+    client.stop();
+    Serial.println("client disonnected");
+  }
+  yield();
+}

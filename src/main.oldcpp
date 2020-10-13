@@ -1,0 +1,171 @@
+#include <Arduino.h>
+
+#define LED 2
+
+#define RXD2 16
+#define TXD2 17
+
+// DLG Platine
+// #define RXD2 13
+// #define TXD2 5
+
+
+/*
+void setup() 
+{
+  // put your setup code here, to run once:
+  // Note the format for setting a serial port is as follows: Serial2.begin(baud-rate, protocol, RX pin, TX pin);
+  Serial.begin(115200);
+  //Serial1.begin(9600, SERIAL_8N1, RXD2, TXD2);
+  Serial2.begin(9600, SERIAL_8N1, RXD2, TXD2);
+  Serial.println("Serial Txd is on pin: "+String(TX));
+  Serial.println("Serial Rxd is on pin: "+String(RX));
+}
+
+void loop() 
+{
+  // put your main code here, to run repeatedly:
+   //Choose Serial1 or Serial2 as required
+  while (Serial2.available()) 
+  
+  {
+    Serial.print(char(Serial2.read()));
+  }
+}
+
+*/
+
+#include <WiFi.h>
+
+//char ssid[] = "MessNetz";   // your network SSID (name)
+//char pass[] = "An2HFVUj";   // your network password
+
+char ssid[] = "SMC4";      // your network SSID (name)
+char pass[] = "###ud361309$$$";   // your network password
+
+// Set your Static IP address
+IPAddress local_IP(192, 168, 2, 26);
+// Set your Gateway IP address
+IPAddress gateway(192, 168, 2, 1);
+
+IPAddress subnet(255, 255, 0, 0);
+IPAddress primaryDNS(8, 8, 8, 8);   //optional
+IPAddress secondaryDNS(8, 8, 4, 4); //optional
+
+
+uint8_t buffer[1436];
+
+char *buffer2[1500];
+
+String myString;
+
+
+uint8_t i;
+
+WiFiServer server(80);
+
+void setup() 
+{
+  // Set pin mode
+  pinMode(LED,OUTPUT);
+  digitalWrite(LED,LOW);
+  Serial.begin(115200);
+  // Configures static IP address
+  if (!WiFi.config(local_IP, gateway, subnet, primaryDNS, secondaryDNS)) {
+    Serial.println("STA Failed to configure");
+  }
+  
+  // Connect to Wi-Fi network with SSID and password
+  Serial.print("Connecting to ");
+  Serial.println(ssid);
+  WiFi.begin(ssid, pass);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(700);
+    Serial.print(".");
+  }
+  // Print local IP address and start web server
+  Serial.println("");
+  Serial.println("WiFi connected.");
+  Serial.print("IP address: ");
+  Serial.println(WiFi.localIP());
+  server.begin();
+  digitalWrite(LED,HIGH);
+  Serial2.begin(9600, SERIAL_8N1, RXD2, TXD2);
+  delay(800);
+}
+
+void loop() 
+{
+  // listen for incoming clients
+  if (server.hasClient())
+  {
+    WiFiClient client = server.available();
+    client.flush();
+   
+    digitalWrite(LED,HIGH);
+    Serial.println("new client");
+    // an http request ends with a blank line
+    while (client.connected()) 
+    {
+      delay(20);
+      if(client.available())
+      {
+        //Serial.println("client availible");
+        
+        while (client.available()) 
+        {
+          //char c = client.read();
+          //Serial.write(c);
+          Serial2.write(client.read());
+          delay(1);
+        }
+      }
+
+      if(Serial2.available())
+      {
+        //Serial.println("serial2 availible");
+        i=0;
+        delay(50);
+        Serial2.readBytesUntil(0x0a,buffer,500);
+        while (true) 
+        {
+          //if(Serial2.available())
+          //{
+            //char c = Serial2.read();  //gets one byte from serial buffer
+            //Serial.write(c);
+            //buffer[i] = c; //makes the string readString
+                       
+            if (buffer[i]==0x0A) 
+            {
+               Serial.println("serial end of line");
+              //client.flush();
+              break;
+            }
+            i++;
+            delay(1);
+          //}
+         
+          delay(1);
+        }
+
+        //Serial.write(buffer, i);
+        client.write(buffer, i);
+        yield();
+        
+      }
+ 
+    }
+    delay(10);
+
+    // close the connection:
+    client.stop();
+    client.flush();
+    Serial.println("client disonnected");
+    digitalWrite(LED,LOW);
+   
+  }
+
+  delay(20);
+  digitalWrite(LED,HIGH);
+  
+}
